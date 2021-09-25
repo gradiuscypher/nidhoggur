@@ -1,8 +1,18 @@
 mod interactions;
+mod commands;
 
-use std::{env, process::Command};
+use std::env;
 
-use serenity::{async_trait, futures::io::Read, model::{gateway::Ready, id::GuildId, interactions::{Interaction, InteractionResponseType, message_component::{ButtonStyle}, application_command::{ApplicationCommand, ApplicationCommandInteractionDataOptionValue, ApplicationCommandOptionChoice, ApplicationCommandOptionType}}}, prelude::*};
+use serenity:: {
+    async_trait, 
+    model:: {
+        gateway::Ready, 
+        interactions:: {
+            Interaction
+        }
+    }, 
+    prelude::*
+};
 
 struct Handler;
 
@@ -11,45 +21,14 @@ impl EventHandler for Handler {
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
         if let Interaction::ApplicationCommand(command) = interaction {
             match command.data.name.as_str() {
-                "gcommand1" => {
-                    if let Err(why) = command.create_interaction_response(&ctx.http, |response| {
-                        response
-                            .kind(InteractionResponseType::ChannelMessageWithSource)
-                            .interaction_response_data(|message| {
-                                message.content("I've run the gcommand!".to_string());
-                                message.components(|c| {
-                                    c.create_action_row(|ar| {
-                                        ar.create_button(|b| {
-                                            b.style(ButtonStyle::Primary);
-                                            b.label("Test Button");
-                                            b.custom_id("test_button");
-                                            b
-                                        })
-                                    })
-                                })
-                            })
-                    })
-                    .await
-                    {
-                        println!("Error: {}", why);
-                    }
-                }
-                _ => {
-                    println!("not implemented: {}", command.data.name.as_str().to_string());
-                }
+                "gcommand2" => { interactions::test_commands::test_slash(&command, &ctx).await }
+                "newcommand" => { interactions::test_commands::new_command(&command, &ctx).await }
+                _ => { println!("not implemented: {}", command.data.name.as_str().to_string()); }
             }
         } else if let Interaction::MessageComponent(command) = interaction {
-            println!("MessageComponent\n command.id: {} user.id: {} data.custom_id: {}", command.id, command.user.id, command.data.custom_id);
-            if let Err(why) = command.create_interaction_response(&ctx.http, |response| {
-                response
-                    .kind(InteractionResponseType::ChannelMessageWithSource)
-                    .interaction_response_data(|message| {
-                        message.content("Button has been pressed.".to_string())
-                    })
-            })
-            .await
-            {
-                println!("Error: {}", why);
+            match command.data.custom_id.as_str() {
+                "test_button" => { interactions::test_buttons::test_buttons(&command, &ctx).await }
+                _ => { println!("not implemented: {}", command.data.custom_id.as_str().to_string()); }
             }
         } else {
             println!("We're outside in spooky");
@@ -58,40 +37,7 @@ impl EventHandler for Handler {
 
     async fn ready(&self, ctx: Context, ready: Ready) {
         println!("{} is connected", ready.user.name);
-
-        let _ = GuildId(268239941195137025).set_application_commands(&ctx.http, |commands| {
-            commands
-                .create_application_command(|command| {
-                    command
-                        .name("gcommand1")
-                        .description("An awesome command 1.")
-                })
-                .create_application_command(|command| {
-                    command
-                        .name("gcommand2")
-                        .description("An awesome command 2.")
-                        .create_option(|option| {
-                            option
-                                .name("stringopt")
-                                .description("The string to send")
-                                .kind(ApplicationCommandOptionType::String)
-                                .required(true)
-                                .add_string_choice("Welcome friend!", "friend")
-                                .add_string_choice("Do you want coffee", "coffee")
-                                .add_string_choice("Welcome to the club", "club")
-                        })
-                        .create_option(|option| {
-                            option
-                                .name("opt2")
-                                .description("The string to send")
-                                .kind(ApplicationCommandOptionType::String)
-                                .required(true)
-                                .add_string_choice("This is string1", "str1")
-                                .add_string_choice("This is string2", "str2")
-                        })
-                })
-        })
-        .await;
+        commands::guild_commands::setup_guild_commands(&ctx).await
     }
 }
 
