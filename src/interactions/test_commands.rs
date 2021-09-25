@@ -1,15 +1,14 @@
 use serenity::{
     client::Context,
-    model::{
-        interactions::{
-            Interaction,
-            InteractionResponseType,
-            application_command::ApplicationCommand
-        },
+    model::interactions::{
+        Interaction,
+        InteractionResponseType,
+        application_command:: ApplicationCommandInteraction,
+        message_component::ButtonStyle
     }
 };
 
-pub async fn test_slash(&command: ApplicationCommand, ctx: &Context, interaction: Interaction) {
+pub async fn test_slash(command: &ApplicationCommandInteraction, ctx: &Context, interaction: Interaction) {
     if let Err(why) = command.create_interaction_response(&ctx.http, |response| {
         response
             .kind(InteractionResponseType::ChannelMessageWithSource)
