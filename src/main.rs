@@ -1,3 +1,5 @@
+mod interactions;
+
 use std::{env, process::Command};
 
 use serenity::{async_trait, futures::io::Read, model::{gateway::Ready, id::GuildId, interactions::{Interaction, InteractionResponseType, message_component::{ButtonStyle}, application_command::{ApplicationCommand, ApplicationCommandInteractionDataOptionValue, ApplicationCommandOptionChoice, ApplicationCommandOptionType}}}, prelude::*};
