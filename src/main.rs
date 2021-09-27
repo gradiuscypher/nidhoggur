@@ -2,6 +2,8 @@ mod interactions;
 mod commands;
 
 use std::env;
+use std::fs::File;
+use std::io::BufReader;
 
 use serenity:: {
     async_trait, 
@@ -14,7 +16,18 @@ use serenity:: {
     prelude::*
 };
 
+use serde::Deserialize;
+
+#[derive(Deserialize, Debug)]
+struct BotConfig {
+    commands: Vec<String>,
+}
+
 struct Handler;
+
+const INTERACTION_PARSER: interactions::interaction_parser::InteractionParser = interactions::interaction_parser::InteractionParser {
+    enabled_interactions: vec!["command1".to_string()],
+};
 
 #[async_trait]
 impl EventHandler for Handler {
@@ -26,10 +39,7 @@ impl EventHandler for Handler {
                 _ => { println!("not implemented: {}", command.data.name.as_str().to_string()); }
             }
         } else if let Interaction::MessageComponent(command) = interaction {
-            match command.data.custom_id.as_str() {
-                "test_button" => { interactions::test_buttons::test_buttons(&command, &ctx).await }
-                _ => { println!("not implemented: {}", command.data.custom_id.as_str().to_string()); }
-            }
+            INTERACTION_PARSER.execute_interaction(&command, &ctx);
         } else {
             println!("We're outside in spooky");
         }
@@ -43,6 +53,18 @@ impl EventHandler for Handler {
 
 #[tokio::main]
 async fn main() {
+    let config_file = File::open("config.json").expect("Unable to read config file.");
+    let config_reader = BufReader::new(config_file);
+    let bot_config: BotConfig = serde_json::from_reader(config_reader).expect("Unable to parse bot config.");
+
+    println!("bot config: {:#?}", bot_config.commands);
+    if bot_config.commands.contains(&"command1".to_string()) {
+        println!("Contained");
+    }
+    if bot_config.commands.contains(&"command10".to_string()) {
+        println!("BAD CONTAIN");
+    }
+
     let token = env::var("DISCORD_TOKEN").expect("Expected a token environment variable");
 
     let application_id: u64 = env::var("APPLICATION_ID")
