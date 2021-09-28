@@ -1,6 +1,9 @@
 mod interactions;
 mod commands;
 
+use interactions::interaction_parser::execute_interaction;
+use interactions::command_parser::execute_command;
+
 use std::env;
 use std::fs::File;
 use std::io::BufReader;
@@ -21,25 +24,27 @@ use serde::Deserialize;
 #[derive(Deserialize, Debug)]
 struct BotConfig {
     commands: Vec<String>,
+    components: Vec<String>,
+}
+
+impl TypeMapKey for BotConfig {
+    type Value = BotConfig;
 }
 
 struct Handler;
 
-const INTERACTION_PARSER: interactions::interaction_parser::InteractionParser = interactions::interaction_parser::InteractionParser {
-    enabled_interactions: vec!["command1".to_string()],
-};
-
 #[async_trait]
 impl EventHandler for Handler {
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
+        let data = ctx.data.read().await;
+        let conf = data.get::<BotConfig>().unwrap();
+
         if let Interaction::ApplicationCommand(command) = interaction {
-            match command.data.name.as_str() {
-                "gcommand2" => { interactions::test_commands::test_slash(&command, &ctx).await }
-                "newcommand" => { interactions::test_commands::new_command(&command, &ctx).await }
-                _ => { println!("not implemented: {}", command.data.name.as_str().to_string()); }
-            }
+            execute_command(&command, &ctx, &conf.commands).await;
+
         } else if let Interaction::MessageComponent(command) = interaction {
-            INTERACTION_PARSER.execute_interaction(&command, &ctx);
+            execute_interaction(&command, &ctx, &conf.components).await;
+
         } else {
             println!("We're outside in spooky");
         }
@@ -53,17 +58,10 @@ impl EventHandler for Handler {
 
 #[tokio::main]
 async fn main() {
+    // grab the config.json and parse it
     let config_file = File::open("config.json").expect("Unable to read config file.");
     let config_reader = BufReader::new(config_file);
     let bot_config: BotConfig = serde_json::from_reader(config_reader).expect("Unable to parse bot config.");
-
-    println!("bot config: {:#?}", bot_config.commands);
-    if bot_config.commands.contains(&"command1".to_string()) {
-        println!("Contained");
-    }
-    if bot_config.commands.contains(&"command10".to_string()) {
-        println!("BAD CONTAIN");
-    }
 
     let token = env::var("DISCORD_TOKEN").expect("Expected a token environment variable");
 
@@ -77,6 +75,12 @@ async fn main() {
         .application_id(application_id)
         .await
         .expect("Error creating client");
+
+    // insert all needed data into context data
+    {
+        let mut data = client.data.write().await;
+        data.insert::<BotConfig>(bot_config);
+    }
 
     if let Err(why) = client.start().await {
         println!("Client error: {:?}", why);

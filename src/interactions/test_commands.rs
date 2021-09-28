@@ -42,7 +42,7 @@ pub async fn new_command(command: &ApplicationCommandInteraction, ctx: &Context)
                         ar.create_button(|b| {
                             b.style(ButtonStyle::Primary);
                             b.label("New Button");
-                            b.custom_id("test_button");
+                            b.custom_id("new_button");
                             b
                         })
                     })
